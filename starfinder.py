@@ -16,8 +16,32 @@ def mmax( x, y):
 def mmin( x, y):
   return min(int(x),int(y)) 
 
+def findstars(image):
+    count = 0
+    stars = []
+    for star in quick_findstars(image):
+        if count>=50:
+            break
+        count+=1
+        stars.append(star)
+    delete_stars = []
+    for i in range(len(stars)):
+        if i in delete_stars:
+            continue
+        for j in range(i+1,len(stars)):
+            if j in delete_stars:
+                continue
+            if distance(stars[i][0], stars[j][0])<2*max(stars[i][1],stars[j][1]):
+                delete_stars.append(j)
 
-def findstars(image): #np.ndarray[float, ndim=2] image):
+    return_list = []
+    for i in range(len(stars)):
+        if i not in delete_stars:
+            return_list.append(stars[i])
+    return return_list
+
+
+def quick_findstars(image): #np.ndarray[float, ndim=2] image):
     sizex=image.shape[1]
     sizey=image.shape[0]
     
@@ -63,8 +87,8 @@ def findstars(image): #np.ndarray[float, ndim=2] image):
         
         # Maximum-likelihood gaussian that fits the star
         curmean = startpoint
-        print startpoint
-        print image[120][51]-brightness_table[120][51]
+        #print startpoint
+        #print image[120][51]-brightness_table[120][51]
         # A probably-conservative estimate; but if true variance is larger, this procedure will converge
         curvariance = math.sqrt(brightestvalue)/30
         for j in range(2):
