@@ -1,6 +1,4 @@
 import random, math
-import numpy as np
-import pyfits
 
 CUTOFFLIMIT = 6
 
@@ -56,21 +54,25 @@ def quick_findstars(image): #np.ndarray[float, ndim=2] image):
             image[y][x]-= noise_level
             if image[y][x]<0:
                 image[y][x]=0
-    print noise_level
               
     stars = [] #[mean, variance, brightness]
     brightness_table = [[0.0 for x in range(sizex)] for y in range(sizey)]
     i=0
+    SKIP_CONST=6
     while True:
         startpoint = (0,0)
         brightestvalue = 0
-        # Find the brightest point in the image after removing previously found stars; this should be a new star!
+        # Find the brightest point in the image after removing previously found stars; this is likely a new star!
         if i>0:
-            for y in range(0,sizey,3):
-                for x in range(0,sizex,3):
-                    brightness_table[y][x]+=stars[i-1][2]*gaussian(distance((x,y),stars[i-1][0])/stars[i-1][1], stars[i-1][1])
-        for y in range(0,sizey,3):
-            for x in range(0,sizex,3):
+            star=stars[i-1]
+            xbounds=( (int(star[0][0]-CUTOFFLIMIT*star[1])/SKIP_CONST)*SKIP_CONST, (int(star[0][0]+CUTOFFLIMIT*star[1])/SKIP_CONST)*SKIP_CONST)
+            ybounds=( (int(star[0][1]-CUTOFFLIMIT*star[1])/SKIP_CONST)*SKIP_CONST, (int(star[0][1]+CUTOFFLIMIT*star[1])/SKIP_CONST)*SKIP_CONST)
+            for y in range(max(ybounds[0],0),min(ybounds[1],sizey),SKIP_CONST):
+                for x in range(max(xbounds[0],0),min(xbounds[1],sizex),SKIP_CONST):
+                    brightness_table[y][x]+=star[2]*gaussian(distance((x,y),star[0])/stars[i-1][1], star[1])
+
+        for y in range(0,sizey,SKIP_CONST):
+            for x in range(0,sizex,SKIP_CONST):
                 skip=False
                 for star in stars:
                     if distance(star[0],(x,y))<CUTOFFLIMIT*star[1]:
@@ -82,7 +84,8 @@ def quick_findstars(image): #np.ndarray[float, ndim=2] image):
                     startpoint=(x,y)
                     brightestvalue=image[y][x]-brightness_table[y][x]
         # No new stars are found
-        if brightestvalue<=40:
+        # TODO Change this to median noise-level
+        if brightestvalue<=100:
             break
         
         # Maximum-likelihood gaussian that fits the star
@@ -114,9 +117,12 @@ def quick_findstars(image): #np.ndarray[float, ndim=2] image):
                 for x in range(xmin,xmax):
                     #cumulative_value = sum([star[2]*gaussian(distance((x,y),star[0])/star[1], star[1]) for star in stars])
                     curvariance+=(x-curmean[0])**2 *(image[y][x])/curbrightness
+
+        skip=False
+        for star in stars:
+            if distance(curmean,star[0])<CUTOFFLIMIT*curvariance:
+                skip=True
         stars.append([curmean,curvariance,curbrightness])
         i+=1
-        yield stars[i-1]
-
-                
-            
+        if not skip:
+            yield stars[i-1]
